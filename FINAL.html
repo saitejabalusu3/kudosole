@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CA:COMMING SOON</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        display: grid;
+        place-items: center;
+        background: #07090d;
+        color: #f4f6f8;
+        font-family: Inter, system-ui, Segoe UI, Roboto, Ubuntu, sans-serif;
+        overflow: hidden; /* keep background canvas clean */
+      }
+      /* Background animation layer */
+      #bg {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+      }
+      #bgc {
+        width: 100%;
+        height: 100%;
+        display: block;
+        opacity: 0.38;
+        filter: saturate(1.9) contrast(1.05);
+      }
+
+      /* Foreground CA text */
+      .ca {
+        position: relative;
+        z-index: 1;
+        font-weight: 800;
+        font-size: clamp(20px, 6.8vw, 52px);
+        letter-spacing: 0.2px;
+        text-align: center;
+        user-select: text;
+        -webkit-user-select: text;
+        word-break: break-all;
+        line-height: 1.15;
+        text-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+      }
+      .brand {
+        position: fixed;
+        top: 14px;
+        left: 16px;
+        z-index: 2;
+        font-weight: 800;
+        letter-spacing: 0.3px;
+        font-size: clamp(36px, 8vw, 120px);
+        line-height: 1;
+        color: #f4f6f8;
+        text-shadow: 0 8px 30px rgba(0, 0, 0, 0.55);
+      }
+      .foot {
+        position: fixed;
+        left: 50%;
+        bottom: 14px;
+        transform: translateX(-50%);
+        z-index: 2;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #d9f7ff;
+        font-size: clamp(12px, 2.4vw, 22px);
+        opacity: 0.92;
+        text-shadow: 0 8px 24px rgba(0, 0, 0, 0.45),
+          0 0 12px rgba(62, 197, 255, 0.25);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Vibrant floating KOL names background -->
+    <div id="bg"><canvas id="bgc"></canvas></div>
+    <div class="brand">Kudosol</div>
+
+    <!-- Foreground content (only CA as requested) -->
+    <div class="ca">ca:ddwakldjadioakldmadlakldmakdmaksdsa</div>
+    <div class="foot">FOR ALL THE KOLS OUT THERE</div>
+
+    <script>
+      // === Top 100 KOL Names for background animation ===
+      const NAMES_RAW = `Cupsey,Otta,Cented,DJ.Σn,clukz,West,Loopierr,TIL,Dex,Pain,^1s1mple,Jijo,Pandora,kreo,Leens,The Doc,Letterbomb,Danny,Hesi,YOUNIZ,Monki,radiance,sahil,Gake,Mitch,rayan,Groovy,AlxCooks,Gh0stee,Lynk,Insyder,Insentos,Jidn,Giann,Tuults,el charto,Trey,Ethan Prosper,orangie,Zyaf,Idontpaytaxes,evening,CoCo,Jack Duval🌊,Laanie,oscar,kilo,Carti The Menace,Limfork.eth,BagCalls,Mr. Frog,flock (6'3),Zef,LJC,S,Affu (aura farming),jester,Bastille,Advyth,Brox,Phineas.SOL,Sizeab1e,sp,trav 🎒,wuzie,Enjooyer,JB,Terp,zoru,dingaling,Gorilla Capital,Exy,Rektober,Fashr,Sue,Lectron,FINN,WaiterG,Dan,Lucas,quant,Jalen,bruce,Angi,Scooter,Jeets,old,jitter,Polly,Oura,Nach,goob,Classic,Dolo,Michi,Rizz,dv,Hustler,Meechie,Dan176`;
+      const NAMES = Array.from(
+        new Set(
+          NAMES_RAW.split(/,\s*/g)
+            .map((s) => s.replace(/\n/g, "").trim())
+            .filter(Boolean)
+        )
+      );
+
+      // === Canvas setup ===
+      const canvas = document.getElementById("bgc");
+      const ctx = canvas.getContext("2d");
+      let W = 0,
+        H = 0,
+        DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+
+      function resize() {
+        W = Math.floor(window.innerWidth);
+        H = Math.floor(window.innerHeight);
+        canvas.width = Math.floor(W * DPR);
+        canvas.height = Math.floor(H * DPR);
+        canvas.style.width = W + "px";
+        canvas.style.height = H + "px";
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        // Recompute bounds for words when resizing
+        measureAll();
+      }
+
+      // === Word particles ===
+      const words = [];
+      const RAND = (a, b) => a + Math.random() * (b - a);
+
+      function fontFor(size) {
+        return `${size}px Inter, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, sans-serif`;
+      }
+
+      function measure(word) {
+        ctx.font = fontFor(word.size);
+        const metrics = ctx.measureText(word.text);
+        // approximate height
+        const h = word.size * 1.1;
+        word.w = metrics.width;
+        word.h = h;
+        word.hw = word.w / 2;
+        word.hh = word.h / 2;
+      }
+
+      function makeWords() {
+        words.length = 0;
+        const n = NAMES.length;
+        for (let i = 0; i < n; i++) {
+          const t = NAMES[i];
+          // Larger for early ranks, smaller later
+          const size = Math.round(18 + (1 - i / (n - 1)) * 52); // 18..70px approx before clamp
+          const w = { text: t, size: Math.min(64, Math.max(16, size)) };
+          // temporary size for initial placement
+          measure(w);
+          const marginX = Math.max(24, w.hw + 16);
+          const marginY = Math.max(24, w.hh + 14);
+          w.x = RAND(marginX, Math.max(marginX, W - marginX));
+          w.y = RAND(marginY, Math.max(marginY, H - marginY));
+          // velocity in px/s
+          const speed = RAND(20, 60); // more motion
+          const ang = RAND(0, Math.PI * 2);
+          w.vx = Math.cos(ang) * speed;
+          w.vy = Math.sin(ang) * speed;
+          // color + glow
+          w.hue = RAND(0, 360);
+          w.hueSpeed = RAND(8, 22); // deg/sec
+          w.glow = RAND(6, 18);
+          words.push(w);
+        }
+      }
+
+      function measureAll() {
+        words.forEach(measure);
+      }
+
+      // === Animation ===
+      let last = 0;
+      function tick(ts) {
+        if (!last) last = ts;
+        const dt = Math.min(0.05, (ts - last) / 1000);
+        last = ts; // clamp dt
+        ctx.clearRect(0, 0, W, H);
+
+        for (const w of words) {
+          // advance
+          w.x += w.vx * dt;
+          w.y += w.vy * dt;
+          // bounce inside bounds with safe margins
+          const marginX = Math.max(24, w.hw + 16);
+          const marginY = Math.max(24, w.hh + 14);
+          if (w.x < marginX) {
+            w.x = marginX;
+            w.vx *= -1;
+          }
+          if (w.x > W - marginX) {
+            w.x = W - marginX;
+            w.vx *= -1;
+          }
+          if (w.y < marginY) {
+            w.y = marginY;
+            w.vy *= -1;
+          }
+          if (w.y > H - marginY) {
+            w.y = H - marginY;
+            w.vy *= -1;
+          }
+
+          // color cycle
+          w.hue = (w.hue + w.hueSpeed * dt) % 360;
+          ctx.font = fontFor(w.size);
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.shadowColor = `hsla(${w.hue}, 90%, 55%, .8)`;
+          ctx.shadowBlur = w.glow;
+          ctx.fillStyle = `hsla(${w.hue}, 95%, 60%, .85)`;
+          ctx.fillText(w.text, w.x, w.y);
+        }
+
+        requestAnimationFrame(tick);
+      }
+
+      // Remix targets occasionally by nudging velocities
+      setInterval(() => {
+        for (const w of words) {
+          const ang = RAND(0, Math.PI * 2);
+          const speed = RAND(20, 60);
+          w.vx = Math.cos(ang) * speed;
+          w.vy = Math.sin(ang) * speed;
+        }
+      }, 9000);
+
+      // Boot
+      resize();
+      makeWords();
+      requestAnimationFrame(tick);
+      window.addEventListener("resize", () => {
+        resize();
+      });
+    </script>
+  </body>
+</html>
